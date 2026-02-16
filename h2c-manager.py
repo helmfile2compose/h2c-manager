@@ -10,6 +10,7 @@ Usage:
     python3 h2c-manager.py keycloak==0.1.0         # pin extension version
     python3 h2c-manager.py --core-version v2.0.0   # pin core version
     python3 h2c-manager.py -d ./tools keycloak     # custom install dir
+    python3 h2c-manager.py --force-reinstall       # delete .h2c/ and re-download
     python3 h2c-manager.py run -e compose          # run h2c with smart defaults
 
 If no extensions are given on the command line and a helmfile2compose.yaml
@@ -21,6 +22,7 @@ import argparse
 import importlib.metadata
 import json
 import os
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -383,8 +385,20 @@ def _run(extra_args):
 
 def main():
     # Intercept "run" before argparse — it has its own argument style
-    if len(sys.argv) > 1 and sys.argv[1] == "run":
-        _run(sys.argv[2:])
+    args_before_run = []
+    run_idx = None
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg == "run":
+            run_idx = i
+            break
+        args_before_run.append(arg)
+    if run_idx is not None:
+        if "--force-reinstall" in args_before_run:
+            install_dir = ".h2c"
+            if os.path.isdir(install_dir):
+                print(f"Removing {install_dir}/...")
+                shutil.rmtree(install_dir)
+        _run(sys.argv[run_idx + 1:])
         return
 
     parser = argparse.ArgumentParser(
@@ -406,7 +420,14 @@ def main():
     parser.add_argument(
         "-d", "--dir", default=".h2c",
         help="Install directory (default: .h2c)")
+    parser.add_argument(
+        "--force-reinstall", action="store_true",
+        help="Delete install directory and re-download everything")
     args = parser.parse_args()
+
+    if args.force_reinstall and os.path.isdir(args.dir):
+        print(f"Removing {args.dir}/...")
+        shutil.rmtree(args.dir)
 
     _install(
         core_version=args.core_version,
