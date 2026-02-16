@@ -101,7 +101,7 @@ Open a PR to this repo adding your extension to `extensions.json`. The repo must
 
 ## Documentation
 
-Full docs: [h2c-manager usage guide](https://helmfile2compose.github.io/h2c-docs/maintainer/h2c-manager.html)
+Full docs: [h2c-manager usage guide](https://helmfile2compose.github.io/h2c-docs/maintainer/h2c-manager/)
 
 ## License
 
