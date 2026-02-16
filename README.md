@@ -29,6 +29,9 @@ python3 h2c-manager.py --core-version v2.0.0 keycloak==0.1.0
 # Custom install directory
 python3 h2c-manager.py -d ./tools keycloak
 
+# Delete .h2c/ and re-download everything
+python3 h2c-manager.py --force-reinstall
+
 # Run helmfile2compose with smart defaults
 python3 h2c-manager.py run -e compose
 ```
