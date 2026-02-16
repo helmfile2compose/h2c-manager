@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "extensions": {
+    "keycloak": {
+      "repo": "helmfile2compose/h2c-operator-keycloak",
+      "description": "Keycloak and KeycloakRealmImport CRDs",
+      "file": "keycloak.py",
+      "depends": []
+    },
+    "certmanager": {
+      "repo": "helmfile2compose/h2c-operator-certmanager",
+      "description": "Certificate, ClusterIssuer, Issuer CRDs",
+      "file": "certmanager.py",
+      "depends": []
+    },
+    "trust-manager": {
+      "repo": "helmfile2compose/h2c-operator-trust-manager",
+      "description": "Bundle CRD (trust-manager)",
+      "file": "trust_manager.py",
+      "depends": ["certmanager"]
+    }
+  }
+}
