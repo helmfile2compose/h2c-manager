@@ -17,9 +17,11 @@ curl -fsSL https://raw.githubusercontent.com/helmfile2compose/h2c-manager/main/h
 # Core only
 python3 h2c-manager.py
 
-# Core + operators
-python3 h2c-manager.py keycloak
+# Core + operators (from CLI)
 python3 h2c-manager.py keycloak certmanager trust-manager
+
+# Core + operators (from helmfile2compose.yaml depends list)
+python3 h2c-manager.py
 
 # Pin versions
 python3 h2c-manager.py --core-version v2.0.0 keycloak==0.1.0
@@ -42,6 +44,26 @@ python3 h2c-manager.py run -e compose
 ```
 
 Defaults: `--helmfile-dir .`, `--extensions-dir .h2c/extensions` (if it exists), `--output-dir .`. Any explicit flag overrides the default. All extra arguments are passed through to helmfile2compose.
+
+## Declarative dependencies
+
+If `helmfile2compose.yaml` exists, h2c-manager reads `core_version` and `depends` from it:
+
+```yaml
+core_version: v2.0.0
+depends:
+  - keycloak
+  - certmanager==0.1.0
+  - trust-manager
+```
+
+```bash
+python3 h2c-manager.py
+# Core version from helmfile2compose.yaml: v2.0.0
+# Reading extensions from helmfile2compose.yaml: keycloak, certmanager==0.1.0, trust-manager
+```
+
+CLI flags (`--core-version`, explicit extension args) override the yaml.
 
 ## Output
 

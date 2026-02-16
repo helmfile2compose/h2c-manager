@@ -5,12 +5,16 @@ Downloads h2c-core (helmfile2compose.py) and optional extensions
 from GitHub, resolving versions and dependencies automatically.
 
 Usage:
-    python3 h2c-manager.py                        # install core only
+    python3 h2c-manager.py                        # install core (+ depends from yaml)
     python3 h2c-manager.py keycloak                # install core + keycloak operator
     python3 h2c-manager.py keycloak==0.1.0         # pin extension version
     python3 h2c-manager.py --core-version v2.0.0   # pin core version
     python3 h2c-manager.py -d ./tools keycloak     # custom install dir
     python3 h2c-manager.py run -e compose          # run h2c with smart defaults
+
+If no extensions are given on the command line and a helmfile2compose.yaml
+file exists in the current directory with a 'depends' list, those extensions
+are installed automatically.
 """
 
 import argparse
@@ -86,10 +90,51 @@ def _download_or_die(url):
         return _github_get(url)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            print(f"Error: file not found", file=sys.stderr)
+            print("Error: file not found", file=sys.stderr)
             print(f"  URL: {url}", file=sys.stderr)
             sys.exit(1)
         raise
+
+
+# ---------------------------------------------------------------------------
+# helmfile2compose.yaml — depends resolution
+# ---------------------------------------------------------------------------
+
+def _read_yaml_config(yaml_path="helmfile2compose.yaml"):
+    """Read 'depends' list and 'core_version' from helmfile2compose.yaml.
+
+    Line parser — no pyyaml needed. Returns (depends_list, core_version_or_none).
+    """
+    if not os.path.isfile(yaml_path):
+        return [], None
+    in_depends = False
+    depends = []
+    core_version = None
+    with open(yaml_path, encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            # core_version: v2.0.0
+            if stripped.startswith("core_version:"):
+                val = stripped.split(":", 1)[1].strip().strip("'\"")
+                if val:
+                    core_version = val
+                continue
+            # Start of depends block
+            if stripped == "depends:" or stripped.startswith("depends:"):
+                if "[" in stripped:
+                    continue  # inline list not supported
+                in_depends = True
+                continue
+            if in_depends:
+                if stripped.startswith("- "):
+                    val = stripped[2:].strip().strip("'\"")
+                    if val:
+                        depends.append(val)
+                elif stripped == "" or stripped.startswith("#"):
+                    continue
+                else:
+                    in_depends = False  # next YAML key — end of depends block
+    return depends, core_version
 
 
 # ---------------------------------------------------------------------------
@@ -213,17 +258,110 @@ def _write_file(path, content):
 # Run mode
 # ---------------------------------------------------------------------------
 
+def _install(core_version=None, extensions=None, install_dir=".h2c"):
+    """Install h2c-core and optional extensions.
+
+    If core_version/extensions are not given, reads from helmfile2compose.yaml.
+    """
+    extensions_dir = os.path.join(install_dir, "extensions")
+
+    yaml_depends, yaml_core_version = _read_yaml_config()
+
+    if core_version:
+        core_tag = _normalize_tag(core_version)
+    elif yaml_core_version:
+        core_tag = _normalize_tag(yaml_core_version)
+        print(f"Core version from helmfile2compose.yaml: {core_tag}")
+    else:
+        core_tag = _latest_tag(CORE_REPO)
+
+    print(f"Fetching h2c-core {core_tag}...")
+    core_url = _raw_url(CORE_REPO, core_tag, CORE_FILE)
+    core_content = _download_or_die(core_url)
+
+    ext_args = extensions if extensions is not None else []
+    if not ext_args and yaml_depends:
+        print(f"Reading extensions from helmfile2compose.yaml: "
+              f"{', '.join(yaml_depends)}")
+        ext_args = yaml_depends
+
+    requested = [_parse_extension_arg(ext) for ext in ext_args]
+    extension_files = []
+    extensions_with_reqs = []
+
+    if requested:
+        registry = _fetch_registry()
+        resolved = _resolve_dependencies(requested, registry)
+
+        for name, pinned, is_dep in resolved:
+            entry = registry[name]
+            tag, version_display = _resolve_extension_version(pinned, entry)
+
+            dep_of = ""
+            if is_dep:
+                dependents = []
+                for req_name, _ in requested:
+                    req_entry = registry.get(req_name, {})
+                    if name in req_entry.get("depends", []):
+                        dependents.append(req_name)
+                if dependents:
+                    dep_of = f" (dependency of {', '.join(dependents)})"
+
+            print(f"Fetching extension {name} {version_display}{dep_of}...")
+
+            file_path = entry["file"]
+            file_url = _raw_url(entry["repo"], tag, file_path)
+            content = _download_or_die(file_url)
+
+            local_name = os.path.basename(file_path)
+            extension_files.append((name, local_name, content))
+
+            reqs_url = _raw_url(entry["repo"], tag, "requirements.txt")
+            reqs_data = _download(reqs_url)
+            if reqs_data:
+                req_lines = reqs_data.decode("utf-8").splitlines()
+                extensions_with_reqs.append((name, req_lines))
+
+    # Dependency check
+    all_checks = [("h2c-core", ["pyyaml"])]
+    all_checks.extend(extensions_with_reqs)
+    missing = _check_requirements(all_checks)
+    if missing:
+        print(file=sys.stderr)
+        print("Missing Python dependencies:", file=sys.stderr)
+        for component, req_line in missing:
+            print(f"  {component}: {req_line}", file=sys.stderr)
+        all_reqs = sorted(set(r for _, r in missing))
+        print(f"\nInstall with: pip install {' '.join(all_reqs)}",
+              file=sys.stderr)
+        print(file=sys.stderr)
+
+    # Write files
+    core_path = os.path.join(install_dir, CORE_FILE)
+    _write_file(core_path, core_content)
+    print(f"Wrote {core_path}")
+
+    for name, local_name, content in extension_files:
+        ext_path = os.path.join(extensions_dir, local_name)
+        _write_file(ext_path, content)
+        print(f"Wrote {ext_path}")
+
+
 def _run(extra_args):
     """Run helmfile2compose.py with smart defaults.
 
-    Defaults: --helmfile-dir . --extensions-dir .h2c/extensions --output-dir .
+    Auto-installs h2c-core (+ extensions from helmfile2compose.yaml) if
+    .h2c/ is missing. Then runs with defaults:
+    --helmfile-dir . --extensions-dir .h2c/extensions --output-dir .
     Any explicit flag in extra_args overrides the default.
     """
     h2c = os.path.join(".h2c", CORE_FILE)
     if not os.path.isfile(h2c):
-        print(f"Error: {h2c} not found. Run h2c-manager.py first to install.",
-              file=sys.stderr)
-        sys.exit(1)
+        has_yaml = os.path.isfile("helmfile2compose.yaml")
+        if not has_yaml:
+            print("No helmfile2compose.yaml found — installing h2c-core only")
+        _install()
+        print()
 
     cmd = [sys.executable, h2c]
 
@@ -270,87 +408,11 @@ def main():
         help="Install directory (default: .h2c)")
     args = parser.parse_args()
 
-    install_dir = args.dir
-    extensions_dir = os.path.join(install_dir, "extensions")
-
-    # -- Core ---------------------------------------------------------------
-
-    if args.core_version:
-        core_tag = _normalize_tag(args.core_version)
-    else:
-        core_tag = _latest_tag(CORE_REPO)
-
-    print(f"Fetching h2c-core {core_tag}...")
-    core_url = _raw_url(CORE_REPO, core_tag, CORE_FILE)
-    core_content = _download_or_die(core_url)
-
-    # -- Extensions ---------------------------------------------------------
-
-    requested = [_parse_extension_arg(ext) for ext in args.extensions]
-    extension_files = []  # (name, local_name, content_bytes)
-    extensions_with_reqs = []  # (name, [requirement_lines])
-
-    if requested:
-        registry = _fetch_registry()
-        resolved = _resolve_dependencies(requested, registry)
-
-        for name, pinned, is_dep in resolved:
-            entry = registry[name]
-            tag, version_display = _resolve_extension_version(pinned, entry)
-
-            dep_of = ""
-            if is_dep:
-                # Find which requested extensions depend on this one
-                dependents = []
-                for req_name, _ in requested:
-                    req_entry = registry.get(req_name, {})
-                    if name in req_entry.get("depends", []):
-                        dependents.append(req_name)
-                if dependents:
-                    dep_of = f" (dependency of {', '.join(dependents)})"
-
-            print(f"Fetching extension {name} {version_display}{dep_of}...")
-
-            file_path = entry["file"]
-            file_url = _raw_url(entry["repo"], tag, file_path)
-            content = _download_or_die(file_url)
-
-            # Derive the local filename from the file field
-            local_name = os.path.basename(file_path)
-            extension_files.append((name, local_name, content))
-
-            # Try to fetch requirements.txt (optional)
-            reqs_url = _raw_url(entry["repo"], tag, "requirements.txt")
-            reqs_data = _download(reqs_url)
-            if reqs_data:
-                req_lines = reqs_data.decode("utf-8").splitlines()
-                extensions_with_reqs.append((name, req_lines))
-
-    # -- Dependency check ---------------------------------------------------
-
-    if extensions_with_reqs:
-        missing = _check_requirements(extensions_with_reqs)
-        if missing:
-            print(file=sys.stderr)
-            print("Missing Python dependencies for extensions:",
-                  file=sys.stderr)
-            for ext_name, req_line in missing:
-                print(f"  {ext_name}: {req_line}", file=sys.stderr)
-            all_reqs = sorted(set(r for _, r in missing))
-            print(f"\nInstall with: pip install {' '.join(all_reqs)}",
-                  file=sys.stderr)
-            print(file=sys.stderr)
-
-    # -- Write files --------------------------------------------------------
-
-    core_path = os.path.join(install_dir, CORE_FILE)
-    _write_file(core_path, core_content)
-    print(f"Wrote {core_path}")
-
-    for name, local_name, content in extension_files:
-        ext_path = os.path.join(extensions_dir, local_name)
-        _write_file(ext_path, content)
-        print(f"Wrote {ext_path}")
+    _install(
+        core_version=args.core_version,
+        extensions=args.extensions or None,
+        install_dir=args.dir,
+    )
 
 
 if __name__ == "__main__":
