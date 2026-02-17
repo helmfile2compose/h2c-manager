@@ -18,6 +18,12 @@
       "description": "Bundle CRD (trust-manager)",
       "file": "trust_manager.py",
       "depends": ["certmanager"]
+    },
+    "servicemonitor": {
+      "repo": "helmfile2compose/h2c-operator-servicemonitor",
+      "description": "Prometheus and ServiceMonitor CRDs (kube-prometheus-stack)",
+      "file": "servicemonitor.py",
+      "depends": []
     }
   }
 }
