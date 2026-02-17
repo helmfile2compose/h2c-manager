@@ -297,18 +297,31 @@ def _install_core(install_dir, core_version, yaml_core_version, no_reinstall):
     _fetch_file(core_url, core_path, f"h2c-core {core_tag}")
 
 
-def _install_extensions(extensions_dir, requested, no_reinstall):
+def _validate_extensions(requested):
+    """Fetch registry, resolve dependencies, return (registry, resolved).
+
+    Exits with an error if any extension is unknown. Call this before
+    downloading the core so we fail fast on bad input.
+    """
+    if not requested:
+        return None, []
+    registry = _fetch_registry()
+    resolved = _resolve_dependencies(requested, registry)
+    return registry, resolved
+
+
+def _install_extensions(extensions_dir, registry, resolved, requested,
+                        no_reinstall):
     """Download extensions into extensions_dir.
+
+    Takes pre-validated (registry, resolved) from _validate_extensions.
 
     Returns list of (name, [requirement_lines]) for newly downloaded
     extensions (cached ones are skipped, including their requirements).
     """
     extensions_with_reqs = []
-    if not requested:
+    if not resolved:
         return extensions_with_reqs
-
-    registry = _fetch_registry()
-    resolved = _resolve_dependencies(requested, registry)
 
     for name, pinned, is_dep in resolved:
         entry = registry[name]
@@ -349,8 +362,6 @@ def _install(core_version=None, extensions=None, install_dir=".h2c",
     """
     yaml_depends, yaml_core_version = _read_yaml_config()
 
-    _install_core(install_dir, core_version, yaml_core_version, no_reinstall)
-
     ext_args = extensions if extensions is not None else []
     if not ext_args and yaml_depends:
         print(f"Reading extensions from helmfile2compose.yaml: "
@@ -358,9 +369,13 @@ def _install(core_version=None, extensions=None, install_dir=".h2c",
         ext_args = yaml_depends
 
     requested = [_parse_extension_arg(ext) for ext in ext_args]
+    registry, resolved = _validate_extensions(requested)
+
+    _install_core(install_dir, core_version, yaml_core_version, no_reinstall)
+
     extensions_dir = os.path.join(install_dir, "extensions")
     extensions_with_reqs = _install_extensions(
-        extensions_dir, requested, no_reinstall)
+        extensions_dir, registry, resolved, requested, no_reinstall)
 
     all_checks = [("h2c-core", ["pyyaml"])]
     all_checks.extend(extensions_with_reqs)
