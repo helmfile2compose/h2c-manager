@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/helmfile2compose/h2c-manager/main/h
 python3 h2c-manager.py
 
 # Core + operators (from CLI)
-python3 h2c-manager.py keycloak cert-manager trust-manager
+python3 h2c-manager.py keycloak cert-manager trust-manager servicemonitor
 
 # Core + operators (from helmfile2compose.yaml depends list)
 python3 h2c-manager.py
@@ -29,8 +29,8 @@ python3 h2c-manager.py --core-version v2.1.0 keycloak==0.2.0
 # Custom install directory
 python3 h2c-manager.py -d ./tools keycloak
 
-# Delete .h2c/ and re-download everything
-python3 h2c-manager.py --force-reinstall
+# Skip download, reuse cached .h2c/ (missing files still downloaded)
+python3 h2c-manager.py --no-reinstall
 
 # Run helmfile2compose with smart defaults
 python3 h2c-manager.py run -e compose
@@ -45,6 +45,8 @@ python3 h2c-manager.py run -e compose
 # equivalent to:
 # python3 .h2c/helmfile2compose.py --helmfile-dir . --extensions-dir .h2c/extensions --output-dir . -e compose
 ```
+
+By default, `run` re-downloads everything before each invocation (latest or pinned version from `helmfile2compose.yaml`). Use `--no-reinstall` to skip already-cached files. There is no version tracking — a cached file is either kept or replaced with whatever version resolves.
 
 Defaults: `--helmfile-dir .`, `--extensions-dir .h2c/extensions` (if it exists), `--output-dir .`. Any explicit flag overrides the default. All extra arguments are passed through to helmfile2compose.
 
@@ -75,7 +77,8 @@ CLI flags (`--core-version`, explicit extension args) override the yaml.
 ├── helmfile2compose.py
 └── extensions/
     ├── keycloak.py
-    └── cert_manager.py        # auto-resolved as dep of trust-manager
+    ├── cert_manager.py        # auto-resolved as dep of trust-manager
+    └── servicemonitor.py
 ```
 
 ## Extension registry
