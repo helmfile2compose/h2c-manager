@@ -212,6 +212,25 @@ def _resolve_dependencies(requested, registry):
     return result
 
 
+def _check_incompatible(resolved, registry, ignored=None):
+    """Check for incompatible extension pairs. Exit 1 if any conflict found.
+
+    Bidirectional: if A declares incompatible with B, both A+B and B+A trigger.
+    Extensions named in 'ignored' have their conflicts bypassed.
+    """
+    ignored = ignored or set()
+    resolved_names = {name for name, _, _ in resolved}
+    for name, _, _ in resolved:
+        entry = registry.get(name, {})
+        for incompat in entry.get("incompatible", []):
+            if incompat in resolved_names and name not in ignored and incompat not in ignored:
+                print(f"Error: extensions '{name}' and '{incompat}' are incompatible",
+                      file=sys.stderr)
+                print(f"  Use --ignore-compatibility-errors {name} to override",
+                      file=sys.stderr)
+                sys.exit(1)
+
+
 def _resolve_extension_version(pinned, registry_entry):
     """Resolve the tag for an extension. Returns (tag, version_display)."""
     if pinned:
@@ -297,16 +316,17 @@ def _install_core(install_dir, core_version, yaml_core_version, no_reinstall):
     _fetch_file(core_url, core_path, f"h2c-core {core_tag}")
 
 
-def _validate_extensions(requested):
+def _validate_extensions(requested, ignored=None):
     """Fetch registry, resolve dependencies, return (registry, resolved).
 
-    Exits with an error if any extension is unknown. Call this before
-    downloading the core so we fail fast on bad input.
+    Exits with an error if any extension is unknown or incompatible.
+    Call this before downloading the core so we fail fast on bad input.
     """
     if not requested:
         return None, []
     registry = _fetch_registry()
     resolved = _resolve_dependencies(requested, registry)
+    _check_incompatible(resolved, registry, ignored=ignored)
     return registry, resolved
 
 
@@ -351,7 +371,7 @@ def _install_extensions(extensions_dir, registry, resolved, requested,
 
 
 def _install(core_version=None, extensions=None, install_dir=".h2c",
-             no_reinstall=False):
+             no_reinstall=False, ignored=None):
     """Install h2c-core and optional extensions.
 
     If core_version/extensions are not given, reads from helmfile2compose.yaml.
@@ -369,7 +389,7 @@ def _install(core_version=None, extensions=None, install_dir=".h2c",
         ext_args = yaml_depends
 
     requested = [_parse_extension_arg(ext) for ext in ext_args]
-    registry, resolved = _validate_extensions(requested)
+    registry, resolved = _validate_extensions(requested, ignored=ignored)
 
     _install_core(install_dir, core_version, yaml_core_version, no_reinstall)
 
@@ -391,7 +411,7 @@ def _install(core_version=None, extensions=None, install_dir=".h2c",
         print(file=sys.stderr)
 
 
-def _run(extra_args, no_reinstall=False):
+def _run(extra_args, no_reinstall=False, core_version=None, ignored=None):
     """Run helmfile2compose.py with smart defaults.
 
     Downloads h2c-core (+ extensions from helmfile2compose.yaml) before
@@ -403,7 +423,7 @@ def _run(extra_args, no_reinstall=False):
     has_yaml = os.path.isfile("helmfile2compose.yaml")
     if not has_yaml:
         print("No helmfile2compose.yaml found — installing h2c-core only")
-    _install(no_reinstall=no_reinstall)
+    _install(core_version=core_version, no_reinstall=no_reinstall, ignored=ignored)
     print()
 
     h2c = os.path.join(".h2c", CORE_FILE)
@@ -437,7 +457,15 @@ def main():
         args_before_run.append(arg)
     if run_idx is not None:
         no_reinstall = "--no-reinstall" in args_before_run
-        _run(sys.argv[run_idx + 1:], no_reinstall=no_reinstall)
+        core_version = None
+        ignored = set()
+        for i, arg in enumerate(args_before_run):
+            if arg == "--core-version" and i + 1 < len(args_before_run):
+                core_version = args_before_run[i + 1]
+            if arg == "--ignore-compatibility-errors" and i + 1 < len(args_before_run):
+                ignored.add(args_before_run[i + 1])
+        _run(sys.argv[run_idx + 1:], no_reinstall=no_reinstall,
+             core_version=core_version, ignored=ignored or None)
         return
 
     parser = argparse.ArgumentParser(
@@ -462,6 +490,9 @@ def main():
     parser.add_argument(
         "--no-reinstall", action="store_true",
         help="Skip download and reuse cached install directory")
+    parser.add_argument(
+        "--ignore-compatibility-errors", nargs="+", metavar="EXT",
+        default=[], help="Bypass incompatibility checks for these extensions")
     args = parser.parse_args()
 
     _install(
@@ -469,6 +500,7 @@ def main():
         extensions=args.extensions or None,
         install_dir=args.dir,
         no_reinstall=args.no_reinstall,
+        ignored=set(args.ignore_compatibility_errors) or None,
     )
 
 

@@ -24,6 +24,13 @@
       "description": "Prometheus and ServiceMonitor CRDs (kube-prometheus-stack)",
       "file": "servicemonitor.py",
       "depends": []
+    },
+    "flatten-internal-urls": {
+      "repo": "helmfile2compose/h2c-transform-flatten-internal-urls",
+      "description": "Rewrite K8s FQDNs to short Docker names, strip network aliases",
+      "file": "flatten_internal_urls.py",
+      "depends": [],
+      "incompatible": ["cert-manager"]
     }
   }
 }
