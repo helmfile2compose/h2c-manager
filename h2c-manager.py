@@ -10,8 +10,12 @@ Usage:
     python3 h2c-manager.py keycloak==0.1.0         # pin extension version
     python3 h2c-manager.py --core-version v2.0.0   # pin core version
     python3 h2c-manager.py -d ./tools keycloak     # custom install dir
-    python3 h2c-manager.py --force-reinstall       # delete .h2c/ and re-download
+    python3 h2c-manager.py --no-reinstall          # skip download, use cached .h2c/
     python3 h2c-manager.py run -e compose          # run h2c with smart defaults
+
+By default, h2c-core and extensions are always re-downloaded (overwriting
+any cached files). Use --no-reinstall to skip the download and reuse
+the existing .h2c/ directory.
 
 If no extensions are given on the command line and a helmfile2compose.yaml
 file exists in the current directory with a 'depends' list, those extensions
@@ -22,7 +26,6 @@ import argparse
 import importlib.metadata
 import json
 import os
-import shutil
 import subprocess
 import sys
 import urllib.error
@@ -256,6 +259,14 @@ def _write_file(path, content):
         f.write(content)
 
 
+def _fetch_file(url, local_path, label):
+    """Download url to local_path. Overwrites if exists."""
+    print(f"Fetching {label}...")
+    content = _download_or_die(url)
+    _write_file(local_path, content)
+    print(f"Wrote {local_path}")
+
+
 # ---------------------------------------------------------------------------
 # Run mode
 # ---------------------------------------------------------------------------
@@ -269,15 +280,12 @@ def _find_dependents(name, requested, registry):
     return ""
 
 
-def _install(core_version=None, extensions=None, install_dir=".h2c"):
-    """Install h2c-core and optional extensions.
-
-    If core_version/extensions are not given, reads from helmfile2compose.yaml.
-    """
-    extensions_dir = os.path.join(install_dir, "extensions")
-
-    yaml_depends, yaml_core_version = _read_yaml_config()
-
+def _install_core(install_dir, core_version, yaml_core_version, no_reinstall):
+    """Download h2c-core into install_dir. Skips if cached and no_reinstall."""
+    core_path = os.path.join(install_dir, CORE_FILE)
+    if no_reinstall and os.path.isfile(core_path):
+        print(f"Cached {core_path}")
+        return
     if core_version:
         core_tag = _normalize_tag(core_version)
     elif yaml_core_version:
@@ -285,10 +293,63 @@ def _install(core_version=None, extensions=None, install_dir=".h2c"):
         print(f"Core version from helmfile2compose.yaml: {core_tag}")
     else:
         core_tag = _latest_tag(CORE_REPO)
-
-    print(f"Fetching h2c-core {core_tag}...")
     core_url = _raw_url(CORE_REPO, core_tag, CORE_FILE)
-    core_content = _download_or_die(core_url)
+    _fetch_file(core_url, core_path, f"h2c-core {core_tag}")
+
+
+def _install_extensions(extensions_dir, requested, no_reinstall):
+    """Download extensions into extensions_dir.
+
+    Returns list of (name, [requirement_lines]) for newly downloaded
+    extensions (cached ones are skipped, including their requirements).
+    """
+    extensions_with_reqs = []
+    if not requested:
+        return extensions_with_reqs
+
+    registry = _fetch_registry()
+    resolved = _resolve_dependencies(requested, registry)
+
+    for name, pinned, is_dep in resolved:
+        entry = registry[name]
+        local_name = os.path.basename(entry["file"])
+        ext_path = os.path.join(extensions_dir, local_name)
+
+        if no_reinstall and os.path.isfile(ext_path):
+            print(f"Cached {ext_path}")
+            continue
+
+        tag, version_display = _resolve_extension_version(pinned, entry)
+        dep_of = ""
+        if is_dep:
+            dep_of = _find_dependents(name, requested, registry)
+
+        file_url = _raw_url(entry["repo"], tag, entry["file"])
+        _fetch_file(file_url, ext_path,
+                    f"extension {name} {version_display}{dep_of}")
+
+        reqs_url = _raw_url(entry["repo"], tag, "requirements.txt")
+        reqs_data = _download(reqs_url)
+        if reqs_data:
+            req_lines = reqs_data.decode("utf-8").splitlines()
+            extensions_with_reqs.append((name, req_lines))
+
+    return extensions_with_reqs
+
+
+def _install(core_version=None, extensions=None, install_dir=".h2c",
+             no_reinstall=False):
+    """Install h2c-core and optional extensions.
+
+    If core_version/extensions are not given, reads from helmfile2compose.yaml.
+
+    When no_reinstall is True, existing files are kept as-is and only missing
+    files are downloaded. There is no version tracking: a cached file is never
+    updated unless you run without --no-reinstall (the default).
+    """
+    yaml_depends, yaml_core_version = _read_yaml_config()
+
+    _install_core(install_dir, core_version, yaml_core_version, no_reinstall)
 
     ext_args = extensions if extensions is not None else []
     if not ext_args and yaml_depends:
@@ -297,37 +358,10 @@ def _install(core_version=None, extensions=None, install_dir=".h2c"):
         ext_args = yaml_depends
 
     requested = [_parse_extension_arg(ext) for ext in ext_args]
-    extension_files = []
-    extensions_with_reqs = []
+    extensions_dir = os.path.join(install_dir, "extensions")
+    extensions_with_reqs = _install_extensions(
+        extensions_dir, requested, no_reinstall)
 
-    if requested:
-        registry = _fetch_registry()
-        resolved = _resolve_dependencies(requested, registry)
-
-        for name, pinned, is_dep in resolved:
-            entry = registry[name]
-            tag, version_display = _resolve_extension_version(pinned, entry)
-
-            dep_of = ""
-            if is_dep:
-                dep_of = _find_dependents(name, requested, registry)
-
-            print(f"Fetching extension {name} {version_display}{dep_of}...")
-
-            file_path = entry["file"]
-            file_url = _raw_url(entry["repo"], tag, file_path)
-            content = _download_or_die(file_url)
-
-            local_name = os.path.basename(file_path)
-            extension_files.append((name, local_name, content))
-
-            reqs_url = _raw_url(entry["repo"], tag, "requirements.txt")
-            reqs_data = _download(reqs_url)
-            if reqs_data:
-                req_lines = reqs_data.decode("utf-8").splitlines()
-                extensions_with_reqs.append((name, req_lines))
-
-    # Dependency check
     all_checks = [("h2c-core", ["pyyaml"])]
     all_checks.extend(extensions_with_reqs)
     missing = _check_requirements(all_checks)
@@ -341,33 +375,23 @@ def _install(core_version=None, extensions=None, install_dir=".h2c"):
               file=sys.stderr)
         print(file=sys.stderr)
 
-    # Write files
-    core_path = os.path.join(install_dir, CORE_FILE)
-    _write_file(core_path, core_content)
-    print(f"Wrote {core_path}")
 
-    for name, local_name, content in extension_files:
-        ext_path = os.path.join(extensions_dir, local_name)
-        _write_file(ext_path, content)
-        print(f"Wrote {ext_path}")
-
-
-def _run(extra_args):
+def _run(extra_args, no_reinstall=False):
     """Run helmfile2compose.py with smart defaults.
 
-    Auto-installs h2c-core (+ extensions from helmfile2compose.yaml) if
-    .h2c/ is missing. Then runs with defaults:
-    --helmfile-dir . --extensions-dir .h2c/extensions --output-dir .
+    Downloads h2c-core (+ extensions from helmfile2compose.yaml) before
+    every run, overwriting cached files. Use --no-reinstall to skip
+    already-cached files (missing files are still downloaded).
+    Defaults: --helmfile-dir . --extensions-dir .h2c/extensions --output-dir .
     Any explicit flag in extra_args overrides the default.
     """
-    h2c = os.path.join(".h2c", CORE_FILE)
-    if not os.path.isfile(h2c):
-        has_yaml = os.path.isfile("helmfile2compose.yaml")
-        if not has_yaml:
-            print("No helmfile2compose.yaml found — installing h2c-core only")
-        _install()
-        print()
+    has_yaml = os.path.isfile("helmfile2compose.yaml")
+    if not has_yaml:
+        print("No helmfile2compose.yaml found — installing h2c-core only")
+    _install(no_reinstall=no_reinstall)
+    print()
 
+    h2c = os.path.join(".h2c", CORE_FILE)
     cmd = [sys.executable, h2c]
 
     extensions_dir = os.path.join(".h2c", "extensions")
@@ -397,12 +421,8 @@ def main():
             break
         args_before_run.append(arg)
     if run_idx is not None:
-        if "--force-reinstall" in args_before_run:
-            install_dir = ".h2c"
-            if os.path.isdir(install_dir):
-                print(f"Removing {install_dir}/...")
-                shutil.rmtree(install_dir)
-        _run(sys.argv[run_idx + 1:])
+        no_reinstall = "--no-reinstall" in args_before_run
+        _run(sys.argv[run_idx + 1:], no_reinstall=no_reinstall)
         return
 
     parser = argparse.ArgumentParser(
@@ -425,18 +445,15 @@ def main():
         "-d", "--dir", default=".h2c",
         help="Install directory (default: .h2c)")
     parser.add_argument(
-        "--force-reinstall", action="store_true",
-        help="Delete install directory and re-download everything")
+        "--no-reinstall", action="store_true",
+        help="Skip download and reuse cached install directory")
     args = parser.parse_args()
-
-    if args.force_reinstall and os.path.isdir(args.dir):
-        print(f"Removing {args.dir}/...")
-        shutil.rmtree(args.dir)
 
     _install(
         core_version=args.core_version,
         extensions=args.extensions or None,
         install_dir=args.dir,
+        no_reinstall=args.no_reinstall,
     )
 
 
