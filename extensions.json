@@ -43,6 +43,12 @@
       "description": "Traefik ingress annotation rewriter (POC)",
       "file": "traefik_rewriter.py",
       "depends": []
+    },
+    "bitnami": {
+      "repo": "helmfile2compose/h2c-transform-bitnami",
+      "description": "Bitnami Redis, PostgreSQL, Keycloak workarounds",
+      "file": "bitnami.py",
+      "depends": []
     }
   }
 }
