@@ -487,7 +487,7 @@ def _info(names):
         if tag:
             print(f"  latest: {tag}")
         else:
-            print(f"  latest: (could not fetch)")
+            print("  latest: (could not fetch)")
 
         deps = entry.get("depends", [])
         if deps:
