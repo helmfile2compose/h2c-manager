@@ -81,6 +81,11 @@ def _raw_url(repo, tag, path):
     return f"{RAW_BASE}/{repo}/refs/tags/{tag}/{path}"
 
 
+def _release_asset_url(repo, tag, filename):
+    """Build a GitHub release asset download URL."""
+    return f"https://github.com/{repo}/releases/download/{tag}/{filename}"
+
+
 def _download(url):
     """Download a URL, return bytes. Returns None on 404."""
     try:
@@ -324,7 +329,7 @@ def _install_core(install_dir, core_version, yaml_core_version, no_reinstall):
         print(f"Core version from helmfile2compose.yaml: {core_tag}")
     else:
         core_tag = _latest_tag(CORE_REPO)
-    core_url = _raw_url(CORE_REPO, core_tag, CORE_FILE)
+    core_url = _release_asset_url(CORE_REPO, core_tag, CORE_FILE)
     _fetch_file(core_url, core_path, f"h2c-core {core_tag}")
 
 
@@ -521,8 +526,11 @@ def main():
         for i, arg in enumerate(args_before_run):
             if arg == "--core-version" and i + 1 < len(args_before_run):
                 core_version = args_before_run[i + 1]
-            if arg == "--ignore-compatibility-errors" and i + 1 < len(args_before_run):
-                ignored.add(args_before_run[i + 1])
+            if arg == "--ignore-compatibility-errors":
+                j = i + 1
+                while j < len(args_before_run) and not args_before_run[j].startswith("-"):
+                    ignored.add(args_before_run[j])
+                    j += 1
         _run(sys.argv[run_idx + 1:], no_reinstall=no_reinstall,
              core_version=core_version, ignored=ignored or None)
         return

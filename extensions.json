@@ -11,7 +11,8 @@
       "repo": "helmfile2compose/h2c-converter-cert-manager",
       "description": "Certificate, ClusterIssuer, Issuer CRDs",
       "file": "cert_manager.py",
-      "depends": []
+      "depends": [],
+      "incompatible": ["flatten-internal-urls"]
     },
     "trust-manager": {
       "repo": "helmfile2compose/h2c-converter-trust-manager",
@@ -29,8 +30,7 @@
       "repo": "helmfile2compose/h2c-transform-flatten-internal-urls",
       "description": "Rewrite K8s FQDNs to short Docker names, strip network aliases",
       "file": "flatten_internal_urls.py",
-      "depends": [],
-      "incompatible": ["cert-manager"]
+      "depends": []
     },
     "nginx": {
       "repo": "helmfile2compose/h2c-rewriter-nginx",
