@@ -91,6 +91,12 @@
       "description": "Bitnami Redis, PostgreSQL, Keycloak workarounds",
       "file": "bitnami.py",
       "depends": []
+    },
+    "fix-permissions": {
+      "repo": "helmfile2compose/h2c-transform-fix-permissions",
+      "description": "Fix bind mount permissions for non-root containers (built-in)",
+      "file": "fix_permissions.py",
+      "depends": []
     }
   }
 }
