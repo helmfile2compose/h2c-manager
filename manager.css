@@ -1,0 +1,5 @@
+.content { max-width: 620px; }
+
+/* --- registries: teal labels --- */
+.registries { margin-top: 1rem; margin-bottom: 2rem; }
+.registries .card-label { color: var(--teal); }

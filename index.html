@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dekube-manager — the package manager</title>
+<meta name="description" content="dekube-manager downloads distributions and extensions from GitHub, resolves versions and dependencies. One script, zero dependencies beyond Python.">
+<meta property="og:title" content="dekube-manager — the package manager">
+<meta property="og:description" content="Downloads distributions and extensions, resolves versions and dependencies. One script, stdlib only.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://manager.dekube.io">
+<link rel="stylesheet" href="https://dekube.io/shared.css">
+<link rel="stylesheet" href="manager.css">
+</head>
+<body>
+
+<div class="glow glow--purple"></div>
+<div class="glow glow--teal"></div>
+
+<div class="tentacle-slot"></div>
+<script src="https://dekube.io/tentacle.js"></script>
+
+<header>
+  <a class="brand" href="https://dekube.io"><span class="de">de</span>kube-manager<span class="sep">&mdash;</span>The summoner of extensions</a>
+  <nav>
+    <a href="https://docs.dekube.io" target="_blank">Documentation</a>
+    <a href="https://github.com/dekubeio/dekube-manager" target="_blank">GitHub</a>
+  </nav>
+</header>
+
+<div class="content">
+  <h1>dekube-manager</h1>
+  <p class="label">The package manager.</p>
+
+  <p>
+    One script that downloads distributions and extensions from GitHub,
+    resolves versions and dependencies automatically. Stdlib only &mdash;
+    no <code>pip install</code>, no virtualenv, no magic.
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-tabs">
+      <button class="terminal-tab active" data-tab="run">run</button>
+      <button class="terminal-tab" data-tab="install">install</button>
+      <button class="terminal-tab" data-tab="info">info</button>
+    </div>
+    <div class="terminal-body">
+      <div class="terminal-panel active" data-panel="run">
+        <span class="comment"># download, resolve, convert — one shot</span>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">curl -fsSL manager.dekube.io/get -o dekube-manager.py</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">python dekube-manager.py run -e local</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">docker compose up -d</span></div>
+      </div>
+      <div class="terminal-panel" data-panel="install">
+        <span class="comment"># install distribution + extensions</span>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">curl -fsSL manager.dekube.io/get -o dekube-manager.py</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">python dekube-manager.py</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">python dekube-manager.py keycloak</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">python dekube-manager.py keycloak==0.1.0</span></div>
+      </div>
+      <div class="terminal-panel" data-panel="info">
+        <span class="comment"># inspect available extensions</span>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">curl -fsSL manager.dekube.io/get -o dekube-manager.py</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">python dekube-manager.py --info</span></div>
+        <div class="line"><span class="prompt">$ </span><span class="cmd">python dekube-manager.py --info nginx traefik</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="terminal-hint">Python 3.10+ required.</p>
+
+  <p>
+    The manager reads <code>dekube.yaml</code> for its
+    <code>depends</code> list, or takes extension names on the command
+    line. Everything lands in <code>.dekube/</code> &mdash; no global
+    installs, no side effects.
+  </p>
+
+  <div class="section">
+    <h2>Registries</h2>
+    <div class="card-list registries">
+      <div class="card-row">
+        <span class="card-label">extensions.json</span>
+        <span class="card-desc">Third-party converters, providers, transforms, rewriters</span>
+      </div>
+      <div class="card-row">
+        <span class="card-label">distributions.json</span>
+        <span class="card-desc">Available distributions (helmfile2compose, engine)</span>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Both registries are served from this domain as static JSON. The
+    manager fetches them on every run to discover what's available.
+    Full documentation on <a href="https://docs.dekube.io">docs.dekube.io</a>.
+  </p>
+
+  <div class="links">
+    <a href="https://github.com/dekubeio/dekube-manager" target="_blank">
+      <span>Repository</span>
+      <span class="arrow">&rarr;</span>
+    </a>
+    <a href="https://docs.dekube.io" target="_blank">
+      <span>Documentation</span>
+      <span class="arrow">&rarr;</span>
+    </a>
+    <a href="https://helmfile2compose.dekube.io" target="_blank">
+      <span>helmfile2compose</span>
+      <span class="arrow">&rarr;</span>
+    </a>
+  </div>
+</div>
+
+<footer class="subpage-footer">
+  <p class="copyright">&copy; dekube project</p>
+</footer>
+
+<script src="https://dekube.io/tabs.js"></script>
+
+</body>
+</html>
