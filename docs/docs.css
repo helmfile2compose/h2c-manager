@@ -1,0 +1,103 @@
+.docs { max-width: 720px; }
+
+/* --- TOC --- */
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  margin-bottom: 2.5rem;
+  padding: 1rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.toc a {
+  font-size: 0.8rem;
+  color: var(--fg-dim);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc a:hover {
+  color: var(--purple);
+  border-bottom-color: rgba(167, 139, 250, 0.3);
+}
+
+/* --- headings --- */
+.docs h2 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--fg);
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 5rem;
+}
+.docs h2:first-of-type {
+  margin-top: 2rem;
+  border-top: none;
+  padding-top: 0;
+}
+.docs h3 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--fg-muted);
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+}
+
+/* --- lists --- */
+.docs ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 1.5rem;
+}
+.docs ul li {
+  position: relative;
+  padding-left: 1.2rem;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: var(--fg-muted);
+}
+.docs ul li::before {
+  content: '\2013';
+  position: absolute;
+  left: 0;
+  color: var(--fg-dim);
+}
+
+/* --- note --- */
+.note {
+  padding: 0.8rem 1rem;
+  background: rgba(167, 139, 250, 0.06);
+  border-left: 3px solid var(--purple);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+}
+
+/* --- pre inside terminals --- */
+.terminal-body pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: inherit;
+  line-height: 1.8;
+  color: var(--fg);
+  white-space: pre;
+  background: none;
+}
+.terminal-body pre .comment {
+  color: var(--fg-dim);
+}
+
+/* --- inline code in headings --- */
+.docs h2 code, .docs h3 code {
+  font-size: 0.9em;
+}
+
+/* --- responsive --- */
+@media (max-width: 768px) {
+  .toc { flex-direction: column; gap: 0.3rem; }
+}

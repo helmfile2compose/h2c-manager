@@ -141,7 +141,7 @@ Open a PR to this repo adding your extension to `extensions.json`. The repo must
 
 ## Documentation
 
-Full docs: [dekube-manager usage guide](https://docs.dekube.io/dekube-manager/)
+Full docs: [dekube-manager documentation](https://manager.dekube.io/docs/)
 
 ## License
 

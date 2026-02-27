@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dekube-manager docs</title>
+<meta name="description" content="Full documentation for dekube-manager — the package manager for the dekube ecosystem.">
+<meta property="og:title" content="dekube-manager docs">
+<meta property="og:description" content="Full documentation for dekube-manager — downloads distributions and extensions, resolves versions and dependencies.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://manager.dekube.io/docs/">
+<link rel="icon" type="image/svg+xml" href="https://dekube.io/logo.svg">
+<link rel="stylesheet" href="https://dekube.io/shared.css">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<div class="glow glow--purple"></div>
+<div class="glow glow--teal"></div>
+
+<header>
+  <a class="brand" href="https://manager.dekube.io"><span class="de">de</span>kube-manager<span class="sep">&mdash;</span>docs</a>
+  <nav>
+    <a href="https://manager.dekube.io">Home</a>
+    <a href="https://github.com/dekubeio/dekube-manager" target="_blank">GitHub</a>
+  </nav>
+</header>
+
+<div class="content docs">
+
+  <h1>dekube-manager</h1>
+  <p class="label">Documentation</p>
+
+  <nav class="toc">
+    <a href="#installation">Installation</a>
+    <a href="#usage">Usage</a>
+    <a href="#info">Info mode</a>
+    <a href="#output">Output</a>
+    <a href="#run">Run mode</a>
+    <a href="#versions">Version resolution</a>
+    <a href="#dependencies">Dependency resolution</a>
+    <a href="#incompatibility">Incompatibility checking</a>
+    <a href="#python-deps">Python dependency checking</a>
+    <a href="#registry">Extension registry</a>
+    <a href="#declarative">Declarative dependencies</a>
+    <a href="#integration">Integration with generate-compose.sh</a>
+  </nav>
+
+  <p>
+    dekube-manager is a lightweight package manager for the
+    <a href="https://dekube.io">dekube</a> ecosystem. It downloads
+    distribution scripts and extensions from GitHub releases.
+    Python 3, stdlib only &mdash; no dependencies.
+  </p>
+
+  <!-- Installation -->
+  <h2 id="installation">Installation</h2>
+
+  <p>Download from the dekube-manager repo (rolling release &mdash; always latest):</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <div class="line"><span class="prompt">$ </span><span class="cmd">curl -fsSL manager.dekube.io/get -o dekube-manager.py</span></div>
+    </div>
+  </div>
+
+  <!-- Usage -->
+  <h2 id="usage">Usage</h2>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <span class="comment"># Distribution only (no extensions)</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py</span></div>
+      <br>
+      <span class="comment"># Distribution + keycloak extension</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py keycloak</span></div>
+      <br>
+      <span class="comment"># Distribution + multiple extensions</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py keycloak cert-manager trust-manager</span></div>
+      <br>
+      <span class="comment"># Pin distribution version</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py --distribution-version v3.1.0 keycloak</span></div>
+      <br>
+      <span class="comment"># Pin extension version</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py keycloak==0.4.0</span></div>
+      <br>
+      <span class="comment"># Custom install directory (default: .dekube/)</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py -d ./tools keycloak</span></div>
+      <br>
+      <span class="comment"># Skip download, reuse cached .dekube/ (missing files still downloaded)</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py --no-reinstall</span></div>
+    </div>
+  </div>
+
+  <!-- Info mode -->
+  <h2 id="info">Info mode</h2>
+
+  <p>
+    <code>--info</code> displays registry information about extensions
+    without downloading anything:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <span class="comment"># Show info for all registered extensions</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py --info</span></div>
+      <br>
+      <span class="comment"># Show info for specific extensions (includes dependencies)</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py --info nginx traefik</span></div>
+    </div>
+  </div>
+
+  <p>
+    If no extension names are given and <code>dekube.yaml</code> has a
+    <code>depends:</code> list, info is shown for those extensions.
+  </p>
+
+  <!-- Output -->
+  <h2 id="output">Output</h2>
+
+  <p>dekube-manager creates the following directory structure:</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <span class="comment">.dekube/</span>
+      <span class="comment">&boxvr;&boxh;&boxh; helmfile2compose.py       # distribution script</span>
+      <span class="comment">&boxur;&boxh;&boxh; extensions/</span>
+      <span class="comment">    &boxvr;&boxh;&boxh; keycloak.py            # requested extension</span>
+      <span class="comment">    &boxur;&boxh;&boxh; cert_manager.py        # auto-resolved dependency</span>
+    </div>
+  </div>
+
+  <!-- Run mode -->
+  <h2 id="run">Run mode</h2>
+
+  <p>
+    <code>run</code> is a shortcut to invoke helmfile2compose with sensible defaults:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py run -e compose</span></div>
+      <br>
+      <span class="comment"># equivalent to:</span>
+      <span class="comment"># python3 .dekube/helmfile2compose.py \</span>
+      <span class="comment">#   --helmfile-dir . --extensions-dir .dekube/extensions \</span>
+      <span class="comment">#   --output-dir . -e compose</span>
+    </div>
+  </div>
+
+  <p>
+    By default, <code>run</code> re-downloads the distribution and all
+    extensions before every invocation, overwriting cached files. Versions
+    follow normal resolution: latest release, or the pinned version from
+    <code>dekube.yaml</code> / CLI flags. If you change a pin in the yaml,
+    the next <code>run</code> picks it up.
+  </p>
+
+  <p>
+    Use <code>--no-reinstall</code> to skip downloads for files already
+    present in <code>.dekube/</code> (missing files are still fetched).
+    There is no version tracking: a cached file is either kept as-is or
+    replaced with whatever version resolves. No in-between.
+  </p>
+
+  <p>
+    Defaults: <code>--helmfile-dir .</code>,
+    <code>--extensions-dir .dekube/extensions</code> (if it exists),
+    <code>--output-dir .</code>.
+    Any explicit flag overrides the default. All extra arguments are passed
+    through to helmfile2compose.
+  </p>
+
+  <p class="note">
+    In <code>run</code> mode, extensions are resolved from
+    <code>dekube.yaml</code> <code>depends:</code> (or CLI extension args
+    if provided). Extension names passed <em>before</em> the
+    <code>run</code> keyword are ignored &mdash; only
+    <code>depends:</code> and post-<code>run</code> flags matter.
+  </p>
+
+  <!-- Version resolution -->
+  <h2 id="versions">Version resolution</h2>
+
+  <h3>Distribution</h3>
+  <ul>
+    <li>No flag: latest GitHub release of <code>dekubeio/helmfile2compose</code></li>
+    <li><code>--distribution-version v3.1.0</code>: exact tag. The <code>v</code> prefix is added automatically if missing.</li>
+  </ul>
+
+  <h3>Extensions</h3>
+  <ul>
+    <li>Bare name (<code>keycloak</code>): latest GitHub release</li>
+    <li>Pinned (<code>keycloak==0.4.0</code>): exact version. The <code>v</code> prefix is added automatically if missing.</li>
+  </ul>
+
+  <p>No version ranges. Just <code>latest</code> and <code>==exact</code>.</p>
+
+  <!-- Dependency resolution -->
+  <h2 id="dependencies">Dependency resolution</h2>
+
+  <p>
+    Extensions can declare dependencies in the registry. For example,
+    <code>trust-manager</code> depends on <code>cert-manager</code>:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py trust-manager</span></div>
+      <span class="comment"># Fetching helmfile2compose (latest)...</span>
+      <span class="comment"># Fetching extension cert-manager (dependency of trust-manager)...</span>
+      <span class="comment"># Fetching extension trust-manager...</span>
+    </div>
+  </div>
+
+  <p>
+    Dependencies are resolved one level deep (no transitive chains).
+    Duplicates are deduplicated.
+  </p>
+
+  <!-- Incompatibility checking -->
+  <h2 id="incompatibility">Incompatibility checking</h2>
+
+  <p>
+    Some extensions are fundamentally incompatible (e.g.
+    <code>cert-manager</code> generates certificates with FQDN SANs that
+    <code>flatten-internal-urls</code> would strip). The registry declares
+    these conflicts via <code>"incompatible"</code> in
+    <code>extensions.json</code>, and dekube-manager blocks the combination
+    before downloading anything:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <span class="comment">Error: extensions 'cert-manager' and 'flatten-internal-urls' are incompatible</span>
+      <span class="comment">  Use --ignore-compatibility-errors cert-manager to override</span>
+    </div>
+  </div>
+
+  <p>
+    The check is bidirectional &mdash; if A declares incompatibility with B,
+    installing both A+B or B+A triggers the error.
+  </p>
+
+  <p>To override (you know what you're doing):</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <span class="comment"># Install mode</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py cert-manager flatten-internal-urls \</span></div>
+      <div class="line"><span class="cmd">    --ignore-compatibility-errors cert-manager</span></div>
+      <br>
+      <span class="comment"># Run mode</span>
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py run -e compose \</span></div>
+      <div class="line"><span class="cmd">    --ignore-compatibility-errors cert-manager</span></div>
+    </div>
+  </div>
+
+  <!-- Python dependency checking -->
+  <h2 id="python-deps">Python dependency checking</h2>
+
+  <p>
+    Some extensions require Python packages (e.g. cert-manager requires
+    <code>cryptography</code>). dekube-manager checks if they're installed
+    and prints an aggregated warning:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <span class="comment">Missing Python dependencies:</span>
+      <span class="comment">  cert-manager: cryptography</span>
+      <span class="comment">Install with: pip install cryptography</span>
+    </div>
+  </div>
+
+  <p>
+    This is a warning, not a fatal error &mdash; the extension file is still
+    downloaded. Install the dependency before running helmfile2compose with
+    that extension.
+  </p>
+
+  <!-- Extension registry -->
+  <h2 id="registry">Extension registry</h2>
+
+  <p>
+    The registry lives at <code>dekubeio/dekube-manager</code> as
+    <code>extensions.json</code>. It maps extension names to GitHub repos:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+<pre>{
+  "schema_version": 1,
+  "extensions": {
+    "keycloak": {
+      "repo": "dekubeio/dekube-provider-keycloak",
+      "description": "Keycloak and KeycloakRealmImport CRDs",
+      "file": "keycloak.py",
+      "depends": [],
+      "incompatible": []
+    }
+  }
+}</pre>
+    </div>
+  </div>
+
+  <p>
+    Available versions are whatever tags/releases exist on each repo.
+    The registry doesn't list versions &mdash; GitHub is the source of truth.
+  </p>
+
+  <p>
+    To add an extension to the registry, see
+    <a href="https://docs.dekube.io/extend/extensions/#publishing">Writing extensions &mdash; publishing</a>.
+  </p>
+
+  <!-- Declarative dependencies -->
+  <h2 id="declarative">Declarative dependencies</h2>
+
+  <p>
+    If <code>dekube.yaml</code> exists, dekube-manager reads
+    <code>distribution</code>, <code>distribution_version</code>, and
+    <code>depends</code> from it:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+<pre><span class="comment"># dekube.yaml</span>
+distribution: helmfile2compose
+distribution_version: v3.1.0
+depends:
+  - keycloak
+  - cert-manager==0.3.0
+  - trust-manager</pre>
+    </div>
+  </div>
+
+  <p>
+    The <code>distribution</code> key selects which distribution to install.
+    Available distributions are listed in the <code>distributions.json</code>
+    registry. Use <code>core</code> for the bare engine
+    (<code>dekube.py</code>) or omit the key for the default full
+    distribution.
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <div class="line"><span class="prompt">$ </span><span class="cmd">python3 dekube-manager.py</span></div>
+      <span class="comment"># Distribution version from dekube.yaml: v3.1.0</span>
+      <span class="comment"># Fetching helmfile2compose v3.1.0...</span>
+      <span class="comment"># Reading extensions from dekube.yaml: keycloak, cert-manager==0.3.0, trust-manager</span>
+      <span class="comment"># Fetching extension keycloak v0.4.0...</span>
+      <span class="comment"># ...</span>
+    </div>
+  </div>
+
+  <p>
+    CLI flags override the yaml: <code>--distribution-version</code>
+    overrides <code>distribution_version</code>, explicit extension args
+    override <code>depends</code>. This keeps behavior predictable: either
+    the yaml drives it, or you drive it.
+  </p>
+
+  <p>
+    <code>core_version</code> is accepted as a backwards-compatible alias
+    for <code>distribution_version</code>. The <code>v</code> prefix is
+    added automatically if missing (<code>3.0.0</code> &rarr;
+    <code>v3.0.0</code>).
+  </p>
+
+  <p>
+    dekube-manager also checks that <code>pyyaml</code> is installed
+    (required by helmfile2compose) and warns alongside any extension-specific
+    missing dependencies.
+  </p>
+
+  <!-- Integration -->
+  <h2 id="integration">Integration with generate-compose.sh</h2>
+
+  <p>
+    Projects that ship a <code>generate-compose.sh</code> wrapper can use
+    dekube-manager as the bootstrap:
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+<pre><span class="comment">#!/bin/bash</span>
+<span class="comment">set -euo pipefail</span>
+
+DEKUBE_MANAGER_URL="https://raw.githubusercontent.com/dekubeio/dekube-manager/main/dekube-manager.py"
+curl -fsSL "$DEKUBE_MANAGER_URL" -o dekube-manager.py
+python3 dekube-manager.py run -e compose</pre>
+    </div>
+  </div>
+
+</div>
+
+<footer class="subpage-footer">
+  <p class="copyright">&copy; dekube-manager is part of the <a href="https://dekube.io">dekube</a> project</p>
+</footer>
+
+</body>
+</html>
