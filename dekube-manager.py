@@ -43,14 +43,8 @@ except ImportError:
     sys.exit(1)
 
 DEFAULT_DISTRIBUTION = "helmfile2compose"
-REGISTRY_URL = (
-    "https://raw.githubusercontent.com/"
-    "dekubeio/dekube-manager/main/extensions.json"
-)
-DISTRIBUTIONS_URL = (
-    "https://raw.githubusercontent.com/"
-    "dekubeio/dekube-manager/main/distributions.json"
-)
+REGISTRY_URL = "https://manager.dekube.io/extensions.json"
+DISTRIBUTIONS_URL = "https://manager.dekube.io/distributions.json"
 GITHUB_API = "https://api.github.com"
 RAW_BASE = "https://raw.githubusercontent.com"
 
