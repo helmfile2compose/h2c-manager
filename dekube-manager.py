@@ -35,6 +35,13 @@ import sys
 import urllib.error
 import urllib.request
 
+try:
+    import yaml
+except ImportError:
+    print("Error: pyyaml is required but not installed", file=sys.stderr)
+    print("  Install with: pip install pyyaml", file=sys.stderr)
+    sys.exit(1)
+
 DEFAULT_DISTRIBUTION = "helmfile2compose"
 REGISTRY_URL = (
     "https://raw.githubusercontent.com/"
@@ -120,7 +127,6 @@ def _download_or_die(url):
 def _read_yaml_config(yaml_path=None):
     """Read 'depends', 'distribution', and 'distribution_version' from yaml.
 
-    Line parser — no pyyaml needed.
     Returns (depends_list, distribution_or_none, distribution_version_or_none).
     Backwards compat: 'core_version' is read as fallback for 'distribution_version'.
     """
@@ -135,51 +141,15 @@ def _read_yaml_config(yaml_path=None):
             return [], None, None
     if not os.path.isfile(yaml_path):
         return [], None, None
-    in_depends = False
-    depends = []
-    distribution = None
-    distribution_version = None
-    core_version = None
+
     with open(yaml_path, encoding="utf-8") as f:
-        for line in f:
-            stripped = line.strip()
-            if stripped.startswith("distribution_version:"):
-                val = stripped.split(":", 1)[1].strip().strip("'\"")
-                if val:
-                    distribution_version = val
-                continue
-            # Backwards compat: core_version → distribution_version
-            if stripped.startswith("core_version:"):
-                val = stripped.split(":", 1)[1].strip().strip("'\"")
-                if val:
-                    core_version = val
-                continue
-            if stripped.startswith("distribution:"):
-                # Avoid matching distribution_version (already handled above)
-                key = stripped.split(":")[0]
-                if key == "distribution":
-                    val = stripped.split(":", 1)[1].strip().strip("'\"")
-                    if val:
-                        distribution = val
-                continue
-            # Start of depends block
-            if stripped == "depends:" or stripped.startswith("depends:"):
-                if "[" in stripped:
-                    continue  # inline list not supported
-                in_depends = True
-                continue
-            if in_depends:
-                if stripped.startswith("- "):
-                    val = stripped[2:].strip().strip("'\"")
-                    if val:
-                        depends.append(val)
-                elif stripped == "" or stripped.startswith("#"):
-                    continue
-                else:
-                    in_depends = False  # next YAML key — end of depends block
-    # distribution_version takes precedence over core_version
-    if not distribution_version and core_version:
-        distribution_version = core_version
+        doc = yaml.safe_load(f) or {}
+
+    depends = doc.get("depends") or []
+    distribution = doc.get("distribution") or None
+    distribution_version = doc.get("distribution_version") or None
+    if not distribution_version:
+        distribution_version = doc.get("core_version") or None
     return depends, distribution, distribution_version
 
 
@@ -497,9 +467,7 @@ def _install(distribution_version=None, distribution=None, extensions=None,
     extensions_with_reqs = _install_extensions(
         extensions_dir, registry, resolved, requested, no_reinstall)
 
-    all_checks = [("dekube-engine", ["pyyaml"])]
-    all_checks.extend(extensions_with_reqs)
-    missing = _check_requirements(all_checks)
+    missing = _check_requirements(extensions_with_reqs)
     if missing:
         print(file=sys.stderr)
         print("Missing Python dependencies:", file=sys.stderr)

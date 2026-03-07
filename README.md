@@ -3,10 +3,10 @@
 ![vibe coded](https://img.shields.io/badge/vibe-coded-ff69b4)
 ![python 3](https://img.shields.io/badge/python-3-3776AB)
 ![heresy: 1/10](https://img.shields.io/badge/heresy-1%2F10-brightgreen)
-![stdlib only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen)
+![pyyaml](https://img.shields.io/badge/dependencies-pyyaml-blue)
 ![public domain](https://img.shields.io/badge/license-public%20domain-brightgreen)
 
-Lightweight package manager for [dekube](https://dekube.io). Downloads a distribution (full or bare engine) and CRD operator modules from GitHub releases. Python 3, stdlib only — no dependencies.
+Lightweight package manager for [dekube](https://dekube.io). Downloads a distribution (full or bare engine) and CRD operator modules from GitHub releases. Requires `pyyaml` (same dependency as dekube-engine).
 
 ## Usage
 
