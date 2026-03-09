@@ -59,7 +59,7 @@ def _github_get(url):
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "dekube-manager",
     })
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return resp.read()
 
 
