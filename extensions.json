@@ -98,6 +98,12 @@
       "file": "fix_permissions.py",
       "depends": []
     },
+    "emptydir": {
+      "repo": "dekubeio/dekube-transform-emptydir",
+      "description": "Shared emptyDir volumes between init/sidecar/main containers",
+      "file": "emptydir.py",
+      "depends": []
+    },
     "nginx-provider": {
       "repo": "dekubeio/dekube-provider-nginx",
       "description": "Nginx reverse proxy provider (alternative to Caddy)",
