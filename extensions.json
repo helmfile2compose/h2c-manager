@@ -62,6 +62,12 @@
       "file": "trust_manager.py",
       "depends": ["cert-manager"]
     },
+    "cnpg": {
+      "repo": "dekubeio/dekube-provider-cnpg",
+      "description": "CloudNativePG Cluster and Pooler CRDs",
+      "file": "cnpg.py",
+      "depends": []
+    },
     "servicemonitor": {
       "repo": "dekubeio/dekube-provider-servicemonitor",
       "description": "Prometheus and ServiceMonitor CRDs (kube-prometheus-stack)",
